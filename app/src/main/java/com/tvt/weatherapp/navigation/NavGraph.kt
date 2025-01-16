@@ -1,85 +1,96 @@
 package com.tvt.weatherapp.navigation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.tvt.weatherapp.R
+import com.tvt.weatherapp.ui.components.BottomNavItem
+import com.tvt.weatherapp.ui.components.BottomNavigationBar
+import com.tvt.weatherapp.ui.viewmodel.ForecastViewModel
+import com.tvt.weatherapp.ui.viewmodel.HomeViewModel
+import com.tvt.weatherapp.ui.views.ForecastView
+import com.tvt.weatherapp.ui.views.HomeView
 
+/**
+ * NavGraph composable function that defines the navigation graph for the app.
+ *
+ * @param navController the navigation controller
+ * @param startDestination the start destination of the navigation graph
+ */
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun WeatherItemCard(
-    icon: Int,
-    title: String,
-    value: String
+fun NavGraph(
+    navController: NavHostController,
+    startDestination: Screen = Screen.Home
 ) {
-    val color1 = Color(0xFF4776E6)
-    val color2 = Color(0xFF8E54E9)
+    val bottomNavItems = remember {
+        listOf(
+            BottomNavItem(Screen.Home, R.drawable.home, "Home"),
+            BottomNavItem(Screen.Forecast, R.drawable.compass, "Forecasts"),
+        )
+    }
 
-    val gradient = Brush.verticalGradient(
-        colors = listOf(color1, color2)
-    )
+    val backStackEntry= navController.currentBackStackEntryAsState().value
+    var currentRoute = remember(backStackEntry) {
+        Screen.fromRoute(backStackEntry?.destination?.route ?: "")
+    }
 
-    Card(
-        shape = MaterialTheme.shapes.extraLarge,
-        modifier = Modifier.widthIn(max = 150.dp).heightIn(max = 140.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .background(brush = gradient)
-                .fillMaxSize()
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            BottomNavigationBar(
+                items = bottomNavItems,
+                onItemClick = { index ->
+                    val screen = bottomNavItems[index].route
+                    navigateToTab(navController, screen)
+                },
+                selectedItem = currentRoute
+            )
+        }
+    ) { innerPadding ->
+
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = Modifier.fillMaxSize(),
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp)
-            ) {
-                Icon(
-                    painter = painterResource(id = icon),
-                    contentDescription = title,
-                    modifier = Modifier.size(25.dp),
-                    tint = Color.White
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 16.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = value,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
+            composable<Screen.Home> {
+                val homeViewModel: HomeViewModel = hiltViewModel()
+                HomeView(viewModel = homeViewModel)
+            }
+
+            composable<Screen.Forecast> {
+                val forecastViewModel: ForecastViewModel = hiltViewModel()
+                ForecastView(viewModel = forecastViewModel)
             }
         }
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun WeatherItemCardPreview() {
-    WeatherItemCard(
-        icon = R.drawable.wind,
-        title = "Wind",
-        value = "5 km/h"
-    )
+/**
+ * Navigate to the specified tab.
+ *
+ * @param navController the navigation controller
+ * @param screen the screen to navigate to
+ */
+private fun navigateToTab(navController: NavController, screen: Screen) {
+    navController.navigate(screen) {
+        navController.graph.startDestinationRoute?.let { route ->
+            popUpTo(route) {
+                saveState = true
+            }
+        }
+        launchSingleTop = true
+        restoreState = true
+    }
 }
