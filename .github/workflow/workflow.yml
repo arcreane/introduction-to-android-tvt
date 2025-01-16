@@ -1,21 +1,18 @@
-name: Tag and Release
+name: Build and Push Docker Images
 
 on:
   push:
     branches:
       - main
       - release
-  pull_request:
-    branches:
-      - main
-      - release
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
-  tag-and-release:
-    runs-on: ubuntu-latest
+  build-and-push:
+    runs-on: self-hosted
 
     steps:
       # Step 1: Checkout code
@@ -24,12 +21,14 @@ jobs:
 
       # Step 2: Read VERSION file
       - name: Read base version from file
+        id: version
         run: |
           VERSION=$(cat VERSION)
           echo "BASE_VERSION=$VERSION" >> $GITHUB_ENV
 
       # Step 3: Determine Tag and Release Type
       - name: Determine Tag and Release Type
+        id: meta
         run: |
           if [[ "${GITHUB_REF}" == "refs/heads/release" ]]; then
             TAG="${{ env.BASE_VERSION }}-rc.${{ github.run_number }}"
@@ -44,7 +43,8 @@ jobs:
           echo "TAG=$TAG" >> $GITHUB_ENV
           echo "RELEASE_TYPE=$RELEASE_TYPE" >> $GITHUB_ENV
 
-      # Step 4: Create Git Tag
+
+      # Step 7: Create Git Tag
       - name: Create and Push Git Tag
         run: |
           git config --global user.name "${{ github.actor }}"
@@ -52,7 +52,7 @@ jobs:
           git tag ${{ env.TAG }}
           git push origin ${{ env.TAG }}
 
-      # Step 5: Create GitHub Release
+      # Step 8: Create GitHub Release
       - name: Create GitHub Release
         uses: actions/create-release@v1
         with:
